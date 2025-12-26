@@ -5,7 +5,7 @@ WORKDIR /usr/src/easybuggy/
 RUN mvn -B package
 
 # Stage 2: Runtime
-FROM openjdk:17-slim
+FROM openjdk:17-jdk-slim
 COPY --from=builder /usr/src/easybuggy/target/easybuggy.jar /easybuggy.jar
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
