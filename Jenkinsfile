@@ -4,8 +4,13 @@ pipeline {
         maven 'Maven_3_8_7'
     }
 
+    environment {
+        WORKSPACE_DIR = "${env.WORKSPACE}"
+    }
+
     stages {
-        stage('Compile and Run Sonar Analysis') {
+
+        stage('Compile and Sonar Analysis') {
             steps {
                 withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
                     bat "mvn -Dmaven.test.failure.ignore verify sonar:sonar -Dsonar.token=%SONAR_TOKEN% -Dsonar.projectKey=easybuggy1 -Dsonar.host.url=http://localhost:9000/"
@@ -30,7 +35,7 @@ pipeline {
                         try {
                             bat("C:\\snyk\\snyk-win.exe container test asecurityguru/testeb")
                         } catch (err) {
-                            echo "Container scan found issues, but build will continue."
+                            echo "Snyk container scan found issues, build continues."
                         }
                     }
                 }
@@ -44,31 +49,35 @@ pipeline {
                         try {
                             bat "mvn snyk:test -fn"
                         } catch (err) {
-                            echo "Snyk found vulnerabilities. Build will continue, see report above."
+                            echo "Snyk SCA scan found vulnerabilities, build continues."
                         }
                     }
                 }
             }
         }
 
-        stage('Run DAST Using ZAP') {
+        stage('Run DAST with ZAP') {
             steps {
                 script {
-                    // Ensure output folder exists
-                    bat "mkdir \"%WORKSPACE%\\ZAP_Reports\" || exit 0"
+                    // Ensure folder exists
+                    bat "mkdir \"%WORKSPACE_DIR%\\ZAP_Reports\" || exit 0"
+
+                    // Headless ZAP scan
                     bat """
-                        java -Xmx512m -jar "C:\\zap\\ZAP_2.12.0_Crossplatform\\ZAP_2.12.0\\zap-2.12.0.jar" \
-                        -port 9393 \
-                        -cmd \
-                        -quickurl https://www.example.com \
-                        -quickprogress \
-                        -quickout "%WORKSPACE%\\ZAP_Reports\\ZAP_Output.html"
+                        java -Xmx512m -jar "C:\\zap\\ZAP_2.12.0_Crossplatform\\ZAP_2.12.0\\zap-2.12.0.jar" ^
+                        -daemon ^
+                        -port 9393 ^
+                        -quickurl https://www.example.com ^
+                        -quickprogress ^
+                        -quickout "%WORKSPACE_DIR%\\ZAP_Reports\\ZAP_Output.html" ^
+                        -noSplash ^
+                        -newsession "%WORKSPACE_DIR%\\ZAP_Reports\\zap_session.session"
                     """
                 }
             }
         }
 
-        stage('Checkov Scan') {
+        stage('Run Checkov Scan') {
             steps {
                 bat "checkov -s -f main.tf"
             }
@@ -77,10 +86,10 @@ pipeline {
 
     post {
         always {
-            // Archive ZAP report
+            // Archive ZAP HTML report
             archiveArtifacts artifacts: 'ZAP_Reports/ZAP_Output.html', allowEmptyArchive: true
 
-            // Optional: archive Snyk report if it generates HTML (adjust path if needed)
+            // Optional: archive Snyk HTML report if generated
             archiveArtifacts artifacts: '**/target/snyk-report.html', allowEmptyArchive: true
         }
     }
