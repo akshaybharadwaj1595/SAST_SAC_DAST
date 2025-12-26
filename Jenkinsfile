@@ -1,11 +1,13 @@
 pipeline {
     agent any
+
     tools {
         maven 'Maven_3_8_7'
     }
 
     environment {
         WORKSPACE_DIR = "${env.WORKSPACE}"
+        ZAP_HOME = "C:\\zap\\ZAP_2.16.0_Crossplatform\\ZAP_2.16.0"
     }
 
     stages {
@@ -13,7 +15,12 @@ pipeline {
         stage('Compile and Sonar Analysis') {
             steps {
                 withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
-                    bat "mvn -Dmaven.test.failure.ignore verify sonar:sonar -Dsonar.token=%SONAR_TOKEN% -Dsonar.projectKey=easybuggy1 -Dsonar.host.url=http://localhost:9000/"
+                    bat """
+                        mvn -Dmaven.test.failure.ignore verify sonar:sonar ^
+                        -Dsonar.token=%SONAR_TOKEN% ^
+                        -Dsonar.projectKey=easybuggy1 ^
+                        -Dsonar.host.url=http://localhost:9000/
+                    """
                 }
             }
         }
@@ -59,19 +66,23 @@ pipeline {
         stage('Run DAST with ZAP') {
             steps {
                 script {
-                    // Ensure folder exists
-                    bat "mkdir \"%WORKSPACE_DIR%\\ZAP_Reports\" || exit 0"
+                    def zapReportDir = "${WORKSPACE_DIR}\\ZAP_Reports"
+                    def zapReportHtml = "${zapReportDir}\\ZAP_Output.html"
+                    def zapSession = "${zapReportDir}\\zap_session.session"
 
-                    // Headless ZAP scan
+                    // Create report folder if it doesn't exist
+                    bat "if not exist \"${zapReportDir}\" mkdir \"${zapReportDir}\""
+
+                    // Run ZAP in daemon mode
                     bat """
-                        java -Xmx512m -jar "C:\\zap\\ZAP_2.12.0_Crossplatform\\ZAP_2.12.0\\zap-2.12.0.jar" ^
+                        java -Xmx512m -jar "${ZAP_HOME}\\zap-2.16.0.jar" ^
                         -daemon ^
                         -port 9393 ^
                         -quickurl https://www.example.com ^
                         -quickprogress ^
-                        -quickout "%WORKSPACE_DIR%\\ZAP_Reports\\ZAP_Output.html" ^
+                        -quickout "${zapReportHtml}" ^
                         -noSplash ^
-                        -newsession "%WORKSPACE_DIR%\\ZAP_Reports\\zap_session.session"
+                        -newsession "${zapSession}"
                     """
                 }
             }
@@ -89,7 +100,7 @@ pipeline {
             // Archive ZAP HTML report
             archiveArtifacts artifacts: 'ZAP_Reports/ZAP_Output.html', allowEmptyArchive: true
 
-            // Optional: archive Snyk HTML report if generated
+            // Archive Snyk HTML report if generated
             archiveArtifacts artifacts: '**/target/snyk-report.html', allowEmptyArchive: true
         }
     }
