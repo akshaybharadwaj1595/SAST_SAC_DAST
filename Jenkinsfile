@@ -5,6 +5,7 @@ pipeline {
   }
 
   stages {
+
     stage('Compile and Run Sonar Analysis') {
       steps {
         withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
@@ -27,7 +28,6 @@ pipeline {
       steps {
         withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
           script {
-            // Run Snyk but don’t fail pipeline if exit code is 1
             def status = bat(returnStatus: true, script: "C:\\snyk\\snyk-win.exe container test asecurityguru/testeb --fail-on=none")
             echo "Snyk container scan exit code: ${status}"
           }
@@ -51,17 +51,23 @@ pipeline {
         script {
           // Ensure ZAP_Reports directory exists
           bat("if not exist \"%WORKSPACE%\\ZAP_Reports\" mkdir \"%WORKSPACE%\\ZAP_Reports\"")
-          
-          // Run ZAP scan without failing pipeline
+
+          // Set output file
+          def zapOutput = "%WORKSPACE%\\ZAP_Reports\\ZAP_Output.html"
+
+          // Run ZAP scan using latest 2.16.0 jar
           def status = bat(returnStatus: true, script: """
-            java -Xmx512m -jar "C:\\zap\\ZAP_2.12.0_Crossplatform\\ZAP_2.12.0\\zap-2.12.0.jar" ^
+            java -Xmx512m -jar "C:\\zap\\ZAP_2.16.0_Crossplatform\\ZAP_2.16.0\\zap-2.16.0.jar" ^
             -port 9393 ^
             -cmd ^
             -quickurl https://www.example.com ^
             -quickprogress ^
-            -quickout "%WORKSPACE%\\ZAP_Reports\\ZAP_Output.html"
+            -quickout ${zapOutput}
           """)
           echo "ZAP scan exit code: ${status}"
+
+          // Verify file creation
+          bat("if exist \"${zapOutput}\" echo ZAP report created")
         }
       }
     }
