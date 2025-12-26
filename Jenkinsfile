@@ -55,7 +55,7 @@ pipeline {
                 stage('DAST ZAP Scan') {
                     steps {
                         bat 'if not exist C:\\JenkinsWorkspace\\ZAP_Reports mkdir C:\\JenkinsWorkspace\\ZAP_Reports'
-                        bat "\"C:\\Program Files\\OWASP\\ZAP\\zap.bat\" -cmd -quickurl https://www.example.com -report C:\\JenkinsWorkspace\\ZAP_Reports\\ZAP_Output.html -config api.disablekey=true"
+                        bat "\"C:\\ZAP\\ZAP_2.16.0_Crossplatform\\ZAP_2.16.0\\zap.bat\" -cmd -quickurl https://www.example.com -report C:\\JenkinsWorkspace\\ZAP_Reports\\ZAP_Output.html -config api.disablekey=true"
                     }
                 }
 
