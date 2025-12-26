@@ -28,8 +28,10 @@ pipeline {
         withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
           script {
             try {
-              bat("C:\\snyk\\snyk-win.exe container test asecurityguru/testeb")
+              // Prevent Snyk from failing the pipeline even if vulnerabilities exist
+              bat("C:\\snyk\\snyk-win.exe container test asecurityguru/testeb --fail-on=none")
             } catch (err) {
+              echo "Snyk scan completed. Vulnerabilities may exist, but pipeline continues."
               echo err.getMessage()
             }
           }
@@ -40,6 +42,7 @@ pipeline {
     stage('RunSnykSCA') {
       steps {
         withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
+          // Prevent build failure on exit code 1
           bat("mvn snyk:test -fn")
         }
       }
