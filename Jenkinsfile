@@ -54,14 +54,18 @@ pipeline {
 
                 stage('DAST ZAP Scan') {
                     steps {
+                        // Ensure report folder exists
                         bat 'if not exist C:\\JenkinsWorkspace\\ZAP_Reports mkdir C:\\JenkinsWorkspace\\ZAP_Reports'
-                        bat '"C:\\ZAP\\ZAP_2.16.0_Crossplatform\\ZAP_2.16.0\\zap.bat" -cmd -quickurl https://www.example.com -report C:\\JenkinsWorkspace\\ZAP_Reports\\ZAP_Output.html -config api.disablekey=true'
+
+                        // Run ZAP in headless mode from its installation folder
+                        bat 'cd /d C:\\ZAP\\ZAP_2.16.0_Crossplatform\\ZAP_2.16.0 && zap.bat -cmd -quickurl https://www.example.com -report C:\\JenkinsWorkspace\\ZAP_Reports\\ZAP_Output.html -config api.disablekey=true'
                     }
                 }
 
                 stage('Checkov Scan') {
                     steps {
-                        bat 'C:\\Users\\Akshay Bharadwaj\\AppData\\Roaming\\Python\\Python313\\Scripts\\checkov.exe -s -f main.tf || echo "Checkov scan finished with findings."'
+                        // Use full path with quotes to handle space in username
+                        bat '"C:\\Users\\Akshay Bharadwaj\\AppData\\Roaming\\Python\\Python313\\Scripts\\checkov.exe" -s -f main.tf || echo "Checkov scan finished with findings."'
                     }
                 }
             }
