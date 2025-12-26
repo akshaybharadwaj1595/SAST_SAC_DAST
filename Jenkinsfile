@@ -35,6 +35,7 @@ pipeline {
 
         stage('Security Scans') {
             parallel {
+
                 stage('Snyk Container Scan') {
                     steps {
                         withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
@@ -54,14 +55,8 @@ pipeline {
                 stage('DAST ZAP Scan') {
                     steps {
                         bat 'if not exist C:\\JenkinsWorkspace\\ZAP_Reports mkdir C:\\JenkinsWorkspace\\ZAP_Reports'
-                        bat """java -Xmx1024m -jar C:\\zap\\ZAP_2.16.0_Crossplatform\\ZAP_2.16.0\\zap-2.16.0.jar \
--headless \
--session C:\\JenkinsWorkspace\\ZAP_Reports\\zap_session.session \
--port 8080 \
--quickurl https://www.example.com \
--quickprogress \
--quickout C:\\JenkinsWorkspace\\ZAP_Reports\\ZAP_Output.html \
--noSplash \
+                        bat """C:\\zap\\ZAP_2.16.0_Crossplatform\\zap.bat -cmd -quickurl https://www.example.com \
+-report C:\\JenkinsWorkspace\\ZAP_Reports\\ZAP_Output.html \
 -config api.disablekey=true"""
                     }
                 }
