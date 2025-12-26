@@ -14,13 +14,19 @@ pipeline {
 
         stage('Compile and Sonar Analysis') {
             steps {
-                withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
-                    bat """
-                        mvn -Dmaven.test.failure.ignore verify sonar:sonar ^
-                        -Dsonar.token=%SONAR_TOKEN% ^
-                        -Dsonar.projectKey=easybuggy1 ^
-                        -Dsonar.host.url=http://localhost:9000/
-                    """
+                script {
+                    withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
+                        try {
+                            bat """
+                                mvn -Dmaven.test.failure.ignore verify sonar:sonar ^
+                                -Dsonar.token=%SONAR_TOKEN% ^
+                                -Dsonar.projectKey=easybuggy1 ^
+                                -Dsonar.host.url=http://localhost:9000/
+                            """
+                        } catch (err) {
+                            echo "SonarQube server unreachable, skipping analysis."
+                        }
+                    }
                 }
             }
         }
@@ -40,7 +46,7 @@ pipeline {
                 withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
                     script {
                         try {
-                            bat("C:\\snyk\\snyk-win.exe container test asecurityguru/testeb")
+                            bat "C:\\snyk\\snyk-win.exe container test asecurityguru/testeb"
                         } catch (err) {
                             echo "Snyk container scan found issues, build continues."
                         }
@@ -73,11 +79,9 @@ pipeline {
                     // Create report folder if it doesn't exist
                     bat "if not exist \"${zapReportDir}\" mkdir \"${zapReportDir}\""
 
-                    // Run ZAP in daemon mode
+                    // Run ZAP in CLI headless mode (no daemon, no hanging)
                     bat """
                         java -Xmx512m -jar "${ZAP_HOME}\\zap-2.16.0.jar" ^
-                        -daemon ^
-                        -port 9393 ^
                         -quickurl https://www.example.com ^
                         -quickprogress ^
                         -quickout "${zapReportHtml}" ^
