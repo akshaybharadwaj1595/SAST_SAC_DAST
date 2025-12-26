@@ -17,12 +17,7 @@ pipeline {
             steps {
                 script {
                     withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
-                        bat '''
-                            mvn sonar:sonar \
-                                -Dsonar.projectKey=easybuggy1 \
-                                -Dsonar.host.url=http://localhost:9000/ \
-                                -Dsonar.login=%SONAR_TOKEN%
-                        '''
+                        bat """mvn sonar:sonar -Dsonar.projectKey=easybuggy1 -Dsonar.host.url=http://localhost:9000/ -Dsonar.login=%SONAR_TOKEN%"""
                     }
                 }
             }
@@ -59,8 +54,28 @@ pipeline {
                 stage('DAST ZAP Scan') {
                     steps {
                         bat 'if not exist C:\\JenkinsWorkspace\\ZAP_Reports mkdir C:\\JenkinsWorkspace\\ZAP_Reports'
-                        bat '''
-                            java -Xmx512m -jar C:\\zap\\ZAP_2.16.0_Crossplatform\\ZAP_2.16.0\\zap-2.16.0.jar \
-                                -quickurl https://www.example.com \
-                                -quickprogress \
-                                -quickout C:\\JenkinsWorkspace\\ZAP_Re_
+                        bat """java -Xmx512m -jar C:\\zap\\ZAP_2.16.0_Crossplatform\\ZAP_2.16.0\\zap-2.16.0.jar \
+-quickurl https://www.example.com \
+-quickprogress \
+-quickout C:\\JenkinsWorkspace\\ZAP_Reports\\ZAP_Output.html \
+-noSplash \
+-newsession C:\\JenkinsWorkspace\\ZAP_Reports\\zap_session.session"""
+                    }
+                }
+
+                stage('Checkov Scan') {
+                    steps {
+                        bat 'checkov -s -f main.tf || echo "Checkov scan finished with findings."'
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'ZAP_Reports/ZAP_Output.html', allowEmptyArchive: true
+            archiveArtifacts artifacts: '**/target/snyk-report.html', allowEmptyArchive: true
+        }
+    }
+}
