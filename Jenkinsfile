@@ -24,7 +24,7 @@ pipeline {
                                 -Dsonar.host.url=http://localhost:9000/
                             """
                         } catch (err) {
-                            echo "SonarQube server unreachable, skipping analysis."
+                            echo "SonarQube server unreachable or error occurred, skipping analysis."
                         }
                     }
                 }
@@ -45,11 +45,10 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
                     script {
-                        try {
-                            bat "C:\\snyk\\snyk-win.exe container test asecurityguru/testeb"
-                        } catch (err) {
-                            echo "Snyk container scan found issues, build continues."
-                        }
+                        echo "Running Snyk Container Scan..."
+                        bat """
+                            C:\\snyk\\snyk-win.exe container test asecurityguru/testeb || echo "Snyk container scan found issues, build continues."
+                        """
                     }
                 }
             }
@@ -59,11 +58,10 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
                     script {
-                        try {
-                            bat "mvn snyk:test -fn"
-                        } catch (err) {
-                            echo "Snyk SCA scan found vulnerabilities, build continues."
-                        }
+                        echo "Running Snyk SCA Scan..."
+                        bat """
+                            mvn snyk:test -fn || echo "Snyk SCA scan found vulnerabilities, build continues."
+                        """
                     }
                 }
             }
@@ -79,7 +77,8 @@ pipeline {
                     // Create report folder if it doesn't exist
                     bat "if not exist \"${zapReportDir}\" mkdir \"${zapReportDir}\""
 
-                    // Run ZAP in CLI headless mode (no daemon, no hanging)
+                    // Run ZAP in CLI headless mode
+                    echo "Running ZAP DAST scan..."
                     bat """
                         java -Xmx512m -jar "${ZAP_HOME}\\zap-2.16.0.jar" ^
                         -quickurl https://www.example.com ^
@@ -94,7 +93,8 @@ pipeline {
 
         stage('Run Checkov Scan') {
             steps {
-                bat "checkov -s -f main.tf"
+                echo "Running Checkov Scan..."
+                bat "checkov -s -f main.tf || echo \"Checkov scan finished with findings, build continues.\""
             }
         }
     }
