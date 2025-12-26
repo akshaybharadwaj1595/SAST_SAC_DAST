@@ -28,7 +28,6 @@ pipeline {
         withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
           script {
             try {
-              // Use full path if Snyk not in PATH, or just "snyk" if added to PATH
               bat("C:\\snyk\\snyk-win.exe container test asecurityguru/testeb")
             } catch (err) {
               echo err.getMessage()
