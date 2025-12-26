@@ -23,11 +23,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                withDockerRegistry([credentialsId: 'dockerlogin', url: '']) {
-                    script {
-                        docker.build('asecurityguru/testeb')
-                    }
-                }
+                bat 'docker build --no-cache -t asecurityguru/testeb .'
             }
         }
 
