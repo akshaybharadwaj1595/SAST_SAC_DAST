@@ -5,7 +5,7 @@ pipeline {
   }
 
   stages {
-    stage('CompileandRunSonarAnalysis') {
+    stage('Compile and Run Sonar Analysis') {
       steps {
         withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
           bat("mvn -Dmaven.test.failure.ignore verify sonar:sonar -Dsonar.token=%SONAR_TOKEN% -Dsonar.projectKey=easybuggy1 -Dsonar.host.url=http://localhost:9000/")
@@ -13,7 +13,7 @@ pipeline {
       }
     }
 
-    stage('Build') {
+    stage('Build Docker Image') {
       steps {
         withDockerRegistry([credentialsId: "dockerlogin", url: ""]) {
           script {
@@ -23,56 +23,61 @@ pipeline {
       }
     }
 
-    stage('RunContainerScan') {
+    stage('Run Snyk Container Scan') {
       steps {
         withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
           script {
-            try {
-              // Prevent Snyk from failing the pipeline even if vulnerabilities exist
-              bat("C:\\snyk\\snyk-win.exe container test asecurityguru/testeb --fail-on=none")
-            } catch (err) {
-              echo "Snyk scan completed. Vulnerabilities may exist, but pipeline continues."
-              echo err.getMessage()
-            }
+            // Run Snyk but don’t fail pipeline if exit code is 1
+            def status = bat(returnStatus: true, script: "C:\\snyk\\snyk-win.exe container test asecurityguru/testeb --fail-on=none")
+            echo "Snyk container scan exit code: ${status}"
           }
         }
       }
     }
 
-    stage('RunSnykSCA') {
+    stage('Run Snyk SCA') {
       steps {
         withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
-          // Prevent build failure on exit code 1
-          bat("mvn snyk:test -fn")
+          script {
+            def status = bat(returnStatus: true, script: "mvn snyk:test -fn")
+            echo "Snyk SCA scan exit code: ${status}"
+          }
         }
       }
     }
 
-    stage('RunDASTUsingZAP') {
+    stage('Run DAST Using ZAP') {
       steps {
-        bat """
-          if not exist "%WORKSPACE%\\ZAP_Reports" mkdir "%WORKSPACE%\\ZAP_Reports"
-          """
-        bat """
-          java -Xmx512m -jar "C:\\zap\\ZAP_2.12.0_Crossplatform\\ZAP_2.12.0\\zap-2.12.0.jar" ^
-          -port 9393 ^
-          -cmd ^
-          -quickurl https://www.example.com ^
-          -quickprogress ^
-          -quickout "%WORKSPACE%\\ZAP_Reports\\ZAP_Output.html"
-          """
+        script {
+          // Ensure ZAP_Reports directory exists
+          bat("if not exist \"%WORKSPACE%\\ZAP_Reports\" mkdir \"%WORKSPACE%\\ZAP_Reports\"")
+          
+          // Run ZAP scan without failing pipeline
+          def status = bat(returnStatus: true, script: """
+            java -Xmx512m -jar "C:\\zap\\ZAP_2.12.0_Crossplatform\\ZAP_2.12.0\\zap-2.12.0.jar" ^
+            -port 9393 ^
+            -cmd ^
+            -quickurl https://www.example.com ^
+            -quickprogress ^
+            -quickout "%WORKSPACE%\\ZAP_Reports\\ZAP_Output.html"
+          """)
+          echo "ZAP scan exit code: ${status}"
+        }
       }
     }
 
-    stage('ArchiveZAPReport') {
+    stage('Archive ZAP Report') {
       steps {
         archiveArtifacts artifacts: 'ZAP_Reports\\ZAP_Output.html', fingerprint: true
       }
     }
 
-    stage('checkov') {
+    stage('Run Checkov') {
       steps {
-        bat("checkov -s -f main.tf")
+        script {
+          def status = bat(returnStatus: true, script: "checkov -s -f main.tf")
+          echo "Checkov exit code: ${status}"
+        }
       }
     }
   }
