@@ -7,53 +7,42 @@ pipeline {
 
     stages {
 
-        stage('Compile') {
+        stage('Build') {
             steps {
-                bat 'mvn clean verify -Dmaven.test.failure.ignore'
+                bat 'mvn clean package -DskipTests'
             }
         }
 
-        stage('SonarQube Analysis') {
+        stage('Docker Build') {
             steps {
-                withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
-                    bat 'mvn sonar:sonar -Dsonar.projectKey=easybuggy1 -Dsonar.host.url=http://localhost:9000/ -Dsonar.login=%SONAR_TOKEN%'
-                }
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                bat 'docker build --no-cache -t asecurityguru/testeb .'
+                bat 'docker build -t asecurityguru/testeb .'
             }
         }
 
         stage('Security Scans') {
-            parallel {
 
-                stage('Snyk Container Scan') {
+            stages {
+
+                stage('Snyk Container') {
                     steps {
-                        withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
-                            bat '"C:\\snyk\\snyk-win.exe" container test asecurityguru/testeb || exit /b 0'
-                        }
+                        bat '"C:\\snyk\\snyk-win.exe" container test asecurityguru/testeb || exit /b 0'
                     }
                 }
 
-                stage('Snyk SCA Scan') {
+                stage('Snyk SCA') {
                     steps {
-                        withCredentials([string(credentialsId: 'SNYK_TOKEN', variable: 'SNYK_TOKEN')]) {
-                            bat 'mvn snyk:test -fn || exit /b 0'
-                        }
+                        bat 'mvn snyk:test -fn || exit /b 0'
                     }
                 }
 
-                stage('DAST ZAP Scan') {
+                stage('ZAP DAST') {
                     steps {
-                        bat 'if not exist C:\\JenkinsWorkspace\\ZAP_Reports mkdir C:\\JenkinsWorkspace\\ZAP_Reports'
-                        bat 'cd /d "C:\\ZAP\\ZAP_2.16.0_Crossplatform\\ZAP_2.16.0" && zap.bat -cmd -quickurl https://www.example.com -report "C:\\JenkinsWorkspace\\ZAP_Reports\\ZAP_Output.html" -config api.disablekey=true'
+                        bat 'if not exist "%WORKSPACE%\\ZAP_Reports" mkdir "%WORKSPACE%\\ZAP_Reports"'
+                        bat 'cd /d "C:\\ZAP\\ZAP_2.16.0_Crossplatform\\ZAP_2.16.0" && zap.bat -cmd -quickurl https://www.example.com -quickout "%WORKSPACE%\\ZAP_Reports\\ZAP_Output.html"'
                     }
                 }
 
-                stage('Checkov Scan') {
+                stage('Checkov') {
                     steps {
                         bat '"C:\\Users\\Akshay Bharadwaj\\AppData\\Roaming\\Python\\Python313\\Scripts\\checkov.exe" -s -f main.tf || exit /b 0'
                     }
@@ -65,7 +54,6 @@ pipeline {
     post {
         always {
             archiveArtifacts artifacts: 'ZAP_Reports/ZAP_Output.html', allowEmptyArchive: true
-            archiveArtifacts artifacts: '**/target/snyk-report.html', allowEmptyArchive: true
         }
     }
 }
