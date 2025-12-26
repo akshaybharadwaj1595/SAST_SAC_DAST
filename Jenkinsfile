@@ -51,7 +51,7 @@ pipeline {
           if not exist "%WORKSPACE%\\ZAP_Reports" mkdir "%WORKSPACE%\\ZAP_Reports"
           """
         bat """
-          java -Xmx512m -jar C:\\zap\\ZAP_2.12.0_Crossplatform\\ZAP_2.12.0\\zap-2.12.0.jar ^
+          java -Xmx512m -jar "C:\\zap\\ZAP_2.12.0_Crossplatform\\ZAP_2.12.0\\zap-2.12.0.jar" ^
           -port 9393 ^
           -cmd ^
           -quickurl https://www.example.com ^
